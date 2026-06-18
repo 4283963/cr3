@@ -26,8 +26,10 @@ func SetupRouter() *gin.Engine {
 			scripts.DELETE("/:id", scriptHandler.Delete)
 			scripts.POST("/:id/start", scriptHandler.Start)
 			scripts.POST("/:id/pause", scriptHandler.Pause)
+			scripts.POST("/:id/resume", scriptHandler.Resume)
 			scripts.POST("/:id/stop", scriptHandler.Stop)
 			scripts.POST("/:id/reset", scriptHandler.Reset)
+			scripts.GET("/:id/status", scriptHandler.GetGameStatus)
 		}
 
 		rooms := api.Group("/rooms")
@@ -72,6 +74,8 @@ func SetupRouter() *gin.Engine {
 			control.POST("/rooms/:roomId/reset", controlHandler.ResetRoom)
 			control.POST("/rooms/:roomId/bgm/volume", audioHandler.SetRoomBGMVolume)
 			control.POST("/rooms/:roomId/bgm/control", audioHandler.ControlRoomBGM)
+			control.POST("/scripts/:scriptId/pressure/trigger", controlHandler.TriggerPressure)
+			control.POST("/scripts/:scriptId/pressure/reset", controlHandler.ResetPressure)
 		}
 	}
 

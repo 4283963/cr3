@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"escape-room/game"
 	"escape-room/models"
 	"net/http"
 	"strconv"
@@ -146,6 +147,12 @@ func (h *ScriptHandler) Start(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	if err := game.GetManager().StartGame(uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start game timer: " + err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "script started", "data": script})
 }
 
@@ -167,6 +174,9 @@ func (h *ScriptHandler) Pause(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	game.GetManager().PauseGame(uint(id))
+
 	c.JSON(http.StatusOK, gin.H{"message": "script paused", "data": script})
 }
 
@@ -189,6 +199,9 @@ func (h *ScriptHandler) Stop(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	game.GetManager().StopGame(uint(id))
+
 	c.JSON(http.StatusOK, gin.H{"message": "script stopped", "data": script})
 }
 
@@ -247,5 +260,48 @@ func (h *ScriptHandler) Reset(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	game.GetManager().ResetGame(uint(id))
+
 	c.JSON(http.StatusOK, gin.H{"message": "script reset"})
+}
+
+func (h *ScriptHandler) GetGameStatus(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid script id"})
+		return
+	}
+
+	status := game.GetManager().GetGameStatus(uint(id))
+	if status == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "script not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": status})
+}
+
+func (h *ScriptHandler) Resume(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid script id"})
+		return
+	}
+
+	var script models.Script
+	if err := models.GetDB().First(&script, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "script not found"})
+		return
+	}
+
+	script.Status = models.ScriptRunning
+	if err := models.GetDB().Save(&script).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	game.GetManager().ResumeGame(uint(id))
+
+	c.JSON(http.StatusOK, gin.H{"message": "script resumed", "data": script})
 }

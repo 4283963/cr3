@@ -31,6 +31,7 @@ type Audio struct {
 	Status     AudioStatus    `gorm:"default:stopped;size:20" json:"status"`
 	Volume     int            `gorm:"default:50" json:"volume"`
 	Loop       bool           `gorm:"default:false" json:"loop"`
+	IsPressure bool           `gorm:"default:false" json:"is_pressure"`
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`

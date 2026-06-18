@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"escape-room/game"
 	"escape-room/models"
 	"net/http"
 	"strconv"
@@ -211,4 +212,83 @@ func (h *ControlHandler) ResetRoom(c *gin.Context) {
 		"message": "room reset successfully",
 		"data":    room,
 	})
+}
+
+func (h *ControlHandler) TriggerPressure(c *gin.Context) {
+	scriptID, err := strconv.ParseUint(c.Param("scriptId"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid script id"})
+		return
+	}
+
+	var script models.Script
+	if err := models.GetDB().First(&script, scriptID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "script not found"})
+		return
+	}
+
+	if err := game.GetManager().TriggerPressure(uint(scriptID)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "pressure triggered"})
+}
+
+func (h *ControlHandler) ResetPressure(c *gin.Context) {
+	scriptID, err := strconv.ParseUint(c.Param("scriptId"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid script id"})
+		return
+	}
+
+	var script models.Script
+	if err := models.GetDB().First(&script, scriptID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "script not found"})
+		return
+	}
+
+	tx := models.GetDB().Begin()
+	if tx.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": tx.Error.Error()})
+		return
+	}
+
+	var rooms []models.Room
+	if err := tx.Where("script_id = ?", scriptID).Find(&rooms).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	for _, room := range rooms {
+		if err := tx.Model(&models.Device{}).Where("room_id = ? AND is_pressure = ?", room.ID, true).Update("status", models.DeviceOff).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if err := tx.Model(&models.Audio{}).Where("room_id = ? AND is_pressure = ?", room.ID, true).Updates(map[string]interface{}{
+			"status": models.AudioStopped,
+			"volume": 50,
+		}).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	if err := tx.Model(&script).Update("pressure_triggered", false).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	game.GetManager().ResetPressureStatus(uint(scriptID))
+
+	c.JSON(http.StatusOK, gin.H{"message": "pressure reset"})
 }

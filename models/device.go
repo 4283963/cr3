@@ -31,6 +31,7 @@ type Device struct {
 	Name        string         `gorm:"not null;size:100" json:"name"`
 	Type        DeviceType     `gorm:"not null;size:20" json:"type"`
 	Status      DeviceStatus   `gorm:"default:off;size:20" json:"status"`
+	IsPressure  bool           `gorm:"default:false" json:"is_pressure"`
 	GPIO        string         `gorm:"size:50" json:"gpio"`
 	Description string         `gorm:"size:500" json:"description"`
 	CreatedAt   time.Time      `json:"created_at"`
