@@ -104,7 +104,10 @@ func (h *ControlHandler) TriggerAllRoomDevices(c *gin.Context) {
 	if req.DeviceType != "" {
 		query = query.Where("type = ?", req.DeviceType)
 	}
-	query.Find(&devices)
+	if err := query.Find(&devices).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "all devices triggered",
@@ -162,6 +165,17 @@ func (h *ControlHandler) ResetRoom(c *gin.Context) {
 	_ = c.ShouldBindJSON(&req)
 
 	tx := models.GetDB().Begin()
+	if tx.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": tx.Error.Error()})
+		return
+	}
+
+	var checkRoom models.Room
+	if err := tx.First(&checkRoom, roomID).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusNotFound, gin.H{"error": "room not found"})
+		return
+	}
 
 	if req.ResetDevices {
 		if err := tx.Model(&models.Device{}).Where("room_id = ?", roomID).Update("status", models.DeviceOff).Error; err != nil {
@@ -182,10 +196,16 @@ func (h *ControlHandler) ResetRoom(c *gin.Context) {
 		}
 	}
 
-	tx.Commit()
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	var room models.Room
-	models.GetDB().Preload("Devices").Preload("Audios").First(&room, roomID)
+	if err := models.GetDB().Preload("Devices").Preload("Audios").First(&room, roomID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "room reset successfully",

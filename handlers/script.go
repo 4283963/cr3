@@ -112,6 +112,10 @@ func (h *ScriptHandler) Start(c *gin.Context) {
 	script.StartTime = &now
 
 	tx := models.GetDB().Begin()
+	if tx.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": tx.Error.Error()})
+		return
+	}
 	if err := tx.Save(&script).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -138,7 +142,10 @@ func (h *ScriptHandler) Start(c *gin.Context) {
 		}
 	}
 
-	tx.Commit()
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"message": "script started", "data": script})
 }
 
@@ -193,6 +200,10 @@ func (h *ScriptHandler) Reset(c *gin.Context) {
 	}
 
 	tx := models.GetDB().Begin()
+	if tx.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": tx.Error.Error()})
+		return
+	}
 
 	var script models.Script
 	if err := tx.First(&script, id).Error; err != nil {
@@ -232,6 +243,9 @@ func (h *ScriptHandler) Reset(c *gin.Context) {
 		}
 	}
 
-	tx.Commit()
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"message": "script reset"})
 }

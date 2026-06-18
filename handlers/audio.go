@@ -235,7 +235,10 @@ func (h *AudioHandler) SetRoomBGMVolume(c *gin.Context) {
 	}
 
 	var audios []models.Audio
-	models.GetDB().Where("room_id = ? AND type = ?", roomID, models.AudioBGM).Find(&audios)
+	if err := models.GetDB().Where("room_id = ? AND type = ?", roomID, models.AudioBGM).Find(&audios).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"message": "bgm volume updated", "data": audios})
 }
 
@@ -268,6 +271,9 @@ func (h *AudioHandler) ControlRoomBGM(c *gin.Context) {
 	}
 
 	var audios []models.Audio
-	models.GetDB().Where("room_id = ? AND type = ?", roomID, models.AudioBGM).Find(&audios)
+	if err := models.GetDB().Where("room_id = ? AND type = ?", roomID, models.AudioBGM).Find(&audios).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"message": "bgm " + action + "d", "data": audios})
 }

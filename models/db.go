@@ -33,5 +33,8 @@ func InitDB(cfg *config.Config) *gorm.DB {
 }
 
 func GetDB() *gorm.DB {
+	if db == nil {
+		log.Panic("database has not been initialized, call InitDB first")
+	}
 	return db
 }
